@@ -14,17 +14,16 @@ from pathlib import Path
 import httpx
 import yaml
 from rich.markup import escape
-from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widgets import Collapsible, Footer, Header, Input, Markdown, Static
+from textual.widgets import Button, Collapsible, Footer, Input, Markdown, Static
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 WELCOME_TEXT = (
     "Local assistant - reasoning, coding, research, and workspace file access.\n"
-    "Type a message and press enter. Ctrl+Q to quit."
+    "Type a message and press enter."
 )
 
 
@@ -36,7 +35,7 @@ def _core_base_url() -> str:
 
 
 def line_user(text: str) -> str:
-    return f"[bold cyan]you[/bold cyan] [cyan]>[/cyan] {escape(text)}"
+    return f"[dim]›[/dim] {escape(text)}"
 
 
 def line_tool(text: str) -> str:
@@ -49,8 +48,8 @@ def line_error(text: str) -> str:
 
 class ConfirmScreen(ModalScreen[bool]):
     """Modal shown when the model wants to run a mutating file tool.
-    Blocks until the user presses y/n (or clicks nothing - there are no
-    buttons on purpose, keyboard-only keeps it fast)."""
+    Deny is focused by default so an accidental Enter doesn't approve
+    something destructive."""
 
     DEFAULT_CSS = """
     ConfirmScreen {
@@ -59,22 +58,32 @@ class ConfirmScreen(ModalScreen[bool]):
     #confirm-box {
         width: 70%;
         max-width: 90;
-        border: heavy $warning;
+        border: round $primary;
         background: $surface;
         padding: 1 2;
     }
     #confirm-title {
         text-style: bold;
-        color: $warning;
         margin-bottom: 1;
     }
     #confirm-preview {
+        color: $text-muted;
         margin-bottom: 1;
     }
-    #confirm-hint {
-        color: $text-muted;
+    #confirm-buttons {
+        height: auto;
+        align-horizontal: right;
+    }
+    #confirm-buttons Button {
+        margin-left: 1;
     }
     """
+
+    BINDINGS = [
+        ("y", "approve", "Approve"),
+        ("n", "deny", "Deny"),
+        ("escape", "deny", "Deny"),
+    ]
 
     def __init__(self, tool: str, preview: str) -> None:
         super().__init__()
@@ -83,19 +92,27 @@ class ConfirmScreen(ModalScreen[bool]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="confirm-box"):
-            yield Static(f"Approve {self.tool}?", id="confirm-title")
+            yield Static(f"Allow {self.tool}?", id="confirm-title")
             yield Static(escape(self.preview), id="confirm-preview")
-            yield Static("[y] approve      [n] deny", id="confirm-hint")
+            with Horizontal(id="confirm-buttons"):
+                yield Button("Deny", id="deny-btn")
+                yield Button("Approve", id="approve-btn", variant="primary")
 
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "y":
-            self.dismiss(True)
-        elif event.key in ("n", "escape"):
-            self.dismiss(False)
+    def on_mount(self) -> None:
+        self.query_one("#deny-btn", Button).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "approve-btn")
+
+    def action_approve(self) -> None:
+        self.dismiss(True)
+
+    def action_deny(self) -> None:
+        self.dismiss(False)
 
 
 class LocalAssistantApp(App):
-    TITLE = "◆ LOCAL ASSISTANT"
+    TITLE = "Local Assistant"
 
     CSS = """
     Screen {
@@ -124,7 +141,6 @@ class LocalAssistantApp(App):
         height: 1;
         padding: 0 2;
         color: $text-muted;
-        background: $surface;
     }
     #input {
         margin: 0 1 1 1;
@@ -137,7 +153,6 @@ class LocalAssistantApp(App):
         self.messages: list[dict] = []
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
         with VerticalScroll(id="transcript"):
             yield Static(WELCOME_TEXT, id="welcome")
         yield Static("ready", id="status")
@@ -170,7 +185,7 @@ class LocalAssistantApp(App):
         reasoning_widget: Static | None = None
         reasoning_acc = ""
 
-        status.update("[magenta]thinking...[/magenta]")
+        status.update("[dim]thinking...[/dim]")
         input_widget.disabled = True
         transcript.scroll_end(animate=False)
 
@@ -212,14 +227,14 @@ class LocalAssistantApp(App):
 
                             elif event_type == "tool_start":
                                 name = event_data["name"]
-                                status.update(f"[yellow]using {escape(name)}...[/yellow]")
+                                status.update(f"[dim]using {escape(name)}...[/dim]")
                                 await transcript.mount(Static(line_tool(f"{name}..."), classes="tool-line"))
 
                             elif event_type == "tool_end":
-                                status.update("[magenta]thinking...[/magenta]")
+                                status.update("[dim]thinking...[/dim]")
 
                             elif event_type == "confirm_request":
-                                status.update("[bold red]waiting for your approval...[/bold red]")
+                                status.update("[bold]waiting for your approval...[/bold]")
                                 approved = await self.push_screen_wait(
                                     ConfirmScreen(event_data["tool"], event_data["preview"])
                                 )
@@ -231,7 +246,7 @@ class LocalAssistantApp(App):
                                 await transcript.mount(
                                     Static(line_tool(f"{verdict}: {event_data['tool']}"), classes="tool-line")
                                 )
-                                status.update("[magenta]thinking...[/magenta]")
+                                status.update("[dim]thinking...[/dim]")
 
                             elif event_type == "done":
                                 self.messages = event_data["messages"]
@@ -244,7 +259,7 @@ class LocalAssistantApp(App):
         finally:
             if reasoning_collapsible is not None:
                 reasoning_collapsible.collapsed = True
-            status.update("[green]ready[/green]")
+            status.update("[dim]ready[/dim]")
             input_widget.disabled = False
             input_widget.focus()
             transcript.scroll_end(animate=False)
