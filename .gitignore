@@ -1,0 +1,15 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Model weights are large and machine-specific — download separately per README
+models/*.gguf
+
+# Local vector DB contents (regenerate via scripts/ingest_docs.py)
+rag_store/lancedb/
+
+# llama.cpp binaries fetched by scripts/setup_llamacpp.ps1
+vendor/
+
+.env

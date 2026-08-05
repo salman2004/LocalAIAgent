@@ -1,0 +1,43 @@
+# Central configuration for the local assistant.
+# All paths are relative to the repo root so the repo can be copied
+# to another machine without editing anything except model file paths
+# and, if you like, the ports.
+
+llm:
+  base_url: "http://127.0.0.1:8080"   # llama.cpp server hosting the chat model
+  model_path: "./models/qwen3-14b-q5_k_m.gguf"
+  temperature: 0.6
+  max_tokens: 2048
+  context_size: 8192
+  # Qwen3 emits <think>...</think> reasoning before its answer. llama.cpp's
+  # --reasoning-format deepseek (set in scripts/start_llm_server.ps1) splits
+  # that into its own "reasoning_content" stream field instead of leaving it
+  # mixed into the answer text.
+
+embeddings:
+  base_url: "http://127.0.0.1:8081"   # llama.cpp server hosting the embedding model
+  model_path: "./models/nomic-embed-text-v1.5.Q8_0.gguf"
+  context_size: 2048
+
+assistant_core:
+  host: "127.0.0.1"
+  port: 8090
+  max_tool_iterations: 5
+
+rag:
+  db_path: "./rag_store/lancedb"
+  table_name: "documents"
+  chunk_size: 800
+  chunk_overlap: 100
+  top_k: 4
+
+web_search:
+  max_results: 5
+  fetch_timeout_seconds: 15
+
+workspace:
+  # File tools (list_directory/read_file/write_file/delete_file) are
+  # sandboxed to this folder and can't escape it (no ../ traversal out).
+  # Point this at whatever folder you actually want the assistant working
+  # in - defaults to a folder inside the repo so it's safe out of the box.
+  root: "./workspace"
