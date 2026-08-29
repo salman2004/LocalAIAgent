@@ -3,7 +3,7 @@ plus the actual callables the orchestrator dispatches to when the model
 requests a tool call.
 """
 
-from assistant_core.tools import fs_tools, shell_tools
+from assistant_core.tools import claude_tool, fs_tools, shell_tools
 from assistant_core.tools.rag_tool import rag_search
 from assistant_core.tools.web_tool import web_fetch, web_search
 
@@ -166,6 +166,37 @@ TOOL_SPECS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "ask_claude",
+            "description": (
+                "Escalate a task to Claude Code (a much more capable coding "
+                "agent) instead of attempting it yourself. ALWAYS use this "
+                "for any task that involves writing, editing, or debugging "
+                "code, however small - you must never write code yourself. "
+                "Also use it for any other task complex enough that you're "
+                "not confident handling it directly. Requires the user's "
+                "explicit approval before it runs, and can take a couple of "
+                "minutes."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "The full task/request to hand to Claude Code, with enough context to act on its own.",
+                    },
+                    "root": _ROOT_PARAM,
+                    "timeout_seconds": {
+                        "type": "integer",
+                        "description": "Kill the escalation if it runs longer than this. Defaults to 180.",
+                    },
+                },
+                "required": ["prompt"],
+            },
+        },
+    },
 ]
 
 TOOL_FUNCTIONS = {
@@ -179,13 +210,16 @@ TOOL_FUNCTIONS = {
     "run_command": lambda args: shell_tools.run_command(
         args["command"], args.get("root"), args.get("timeout_seconds", shell_tools.DEFAULT_TIMEOUT_SECONDS)
     ),
+    "ask_claude": lambda args: claude_tool.ask_claude(
+        args["prompt"], args.get("root"), args.get("timeout_seconds", claude_tool.DEFAULT_TIMEOUT_SECONDS)
+    ),
 }
 
 # Tools in this set go through the confirmation round-trip in
 # orchestrator.py instead of executing immediately - anything mutating
 # (write_file/delete_file) or otherwise risky/irreversible (run_command,
 # ask_claude).
-CONFIRM_REQUIRED_TOOLS = {"write_file", "delete_file", "run_command"}
+CONFIRM_REQUIRED_TOOLS = {"write_file", "delete_file", "run_command", "ask_claude"}
 
 
 def describe_pending_call(name: str, args: dict) -> str:
@@ -197,4 +231,6 @@ def describe_pending_call(name: str, args: dict) -> str:
         return fs_tools.describe_delete(args.get("path", ""), args.get("root"))
     if name == "run_command":
         return shell_tools.describe_run_command(args.get("command", ""), args.get("root"))
+    if name == "ask_claude":
+        return claude_tool.describe_ask_claude(args.get("prompt", ""), args.get("root"))
     return f"{name}({args})"
