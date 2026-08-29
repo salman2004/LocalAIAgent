@@ -6,7 +6,8 @@ segments are rejected outright, and the resolved path is double-checked
 to still be inside that root before any I/O happens - two independent
 layers so a single bug in one check can't escape the sandbox on its own.
 
-write_file and delete_file are gated: they go through the confirmation
+write_file and delete_file are in CONFIRM_REQUIRED_TOOLS (see
+assistant_core/tools/__init__.py): they go through the confirmation
 round-trip in orchestrator.py before they ever run. list_directory and
 read_file are read-only and execute immediately.
 """

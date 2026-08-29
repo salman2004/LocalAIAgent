@@ -154,8 +154,10 @@ TOOL_FUNCTIONS = {
 }
 
 # Tools in this set go through the confirmation round-trip in
-# orchestrator.py instead of executing immediately.
-MUTATING_TOOLS = {"write_file", "delete_file"}
+# orchestrator.py instead of executing immediately - anything mutating
+# (write_file/delete_file) or otherwise risky/irreversible (run_command,
+# ask_claude).
+CONFIRM_REQUIRED_TOOLS = {"write_file", "delete_file"}
 
 
 def describe_pending_call(name: str, args: dict) -> str:

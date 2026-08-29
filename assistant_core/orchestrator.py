@@ -15,7 +15,7 @@ from assistant_core import confirmations
 from assistant_core.config import get_config
 from assistant_core.llm_client import chat_completion, stream_chat_completion
 from assistant_core.tools import (
-    MUTATING_TOOLS,
+    CONFIRM_REQUIRED_TOOLS,
     TOOL_FUNCTIONS,
     TOOL_SPECS,
     describe_pending_call,
@@ -72,14 +72,14 @@ async def run_chat(messages: list[dict]) -> list[dict]:
 
         for call in tool_calls:
             name = call["function"]["name"]
-            if name in MUTATING_TOOLS:
+            if name in CONFIRM_REQUIRED_TOOLS:
                 # No interactive channel on this endpoint to ask for
-                # approval, so mutating actions are refused rather than
+                # approval, so gated actions are refused rather than
                 # either hanging forever or running unconfirmed.
                 result = (
                     f"'{name}' requires interactive approval, which isn't "
-                    "available on this endpoint. Use the terminal UI (cli/tui.py) "
-                    "for file writes/deletes."
+                    "available on this endpoint. Use /chat/stream (the terminal "
+                    "UI or web UI) instead."
                 )
             else:
                 result = await _execute_tool_call(call)
@@ -96,7 +96,7 @@ async def stream_chat(messages: list[dict]) -> AsyncIterator[dict]:
     {"type": "delta", "content": ...} for the actual answer text,
     {"type": "tool_start"/"tool_end", "name": ...} around read-only tool
     calls, {"type": "confirm_request"/"confirm_resolved", ...} around
-    mutating ones, and finally {"type": "done", "messages": [...]} with
+    gated ones (CONFIRM_REQUIRED_TOOLS), and finally {"type": "done", "messages": [...]} with
     the full updated conversation (mirroring run_chat's return value).
     """
     if not messages or messages[0].get("role") != "system":
@@ -155,7 +155,7 @@ async def stream_chat(messages: list[dict]) -> AsyncIterator[dict]:
         for call in assistant_message["tool_calls"]:
             name = call["function"]["name"]
 
-            if name in MUTATING_TOOLS:
+            if name in CONFIRM_REQUIRED_TOOLS:
                 try:
                     preview_args = json.loads(call["function"]["arguments"] or "{}")
                 except json.JSONDecodeError:
