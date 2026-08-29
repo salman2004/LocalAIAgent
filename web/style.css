@@ -89,11 +89,18 @@ html, body {
 #hud[data-state="idle"] { animation: hud-breathe 4s ease-in-out infinite; }
 #hud[data-state="listening"] { --ring-color: #ffcf5c; animation: hud-breathe 1.2s ease-in-out infinite; }
 #hud[data-state="thinking"] { --ring-color: var(--accent); animation: hud-spin 1.6s linear infinite, hud-breathe 1.6s ease-in-out infinite; }
-#hud[data-state="speaking"] { --ring-color: var(--ok); }
+#hud[data-state="speaking"] {
+  --ring-color: var(--ok);
+  animation: hud-speak-pulse 0.7s ease-in-out infinite;
+}
 
 @keyframes hud-breathe {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.06); }
+}
+@keyframes hud-speak-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 12px var(--accent-glow); }
+  50% { transform: scale(1.08); box-shadow: 0 0 28px var(--accent-glow); }
 }
 @keyframes hud-spin {
   from { background: conic-gradient(from 0deg, transparent 0deg, var(--accent-glow) 30deg, transparent 60deg); }

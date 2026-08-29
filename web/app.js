@@ -295,9 +295,15 @@ async function transcribeAndSend(blob) {
   }
 }
 
-// --- voice: playback, HUD reacts to real audio amplitude ----------------
+// --- voice: playback -----------------------------------------------------
+// Deliberately NOT touching the Web Audio API (AudioContext/analyser) here
+// at all - routing playback through it for a reactive HUD glow turned out
+// to be the actual source of distorted audio (regular <audio>/<video>
+// playback, e.g. a browser tab playing Instagram, never goes through Web
+// Audio and was always clean). The HUD gets a plain animated pulse during
+// speech instead of true amplitude-reactivity - a real trade of a nice-to-
+// have for actually-working audio.
 
-let audioCtx = null;
 let ttsAudioEl = null;
 
 function sleep(ms) {
@@ -325,40 +331,16 @@ async function speakText(text) {
       if (remaining > 0) await sleep(remaining);
     }
 
-    // Plain <audio> playback rather than manually decoding/resampling via
-    // AudioContext - the browser's own media pipeline handles output-device
-    // resampling (Piper's WAV is 22050Hz, system output is usually
-    // 44100/48000Hz) far more robustly than a hand-rolled BufferSourceNode
-    // graph. The analyser below is only a read-only tap on top of this for
-    // the HUD glow, never the actual playback path.
     if (ttsAudioEl) {
       ttsAudioEl.pause();
       URL.revokeObjectURL(ttsAudioEl.src);
     }
     ttsAudioEl = new Audio(URL.createObjectURL(blob));
 
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioCtx.createMediaElementSource(ttsAudioEl);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-
     setState("speaking");
     await ttsAudioEl.play();
 
-    const tick = () => {
-      if (hud.dataset.state !== "speaking") return;
-      analyser.getByteFrequencyData(dataArray);
-      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      hud.style.setProperty("--ring-glow", Math.min(1, avg / 100).toFixed(3));
-      requestAnimationFrame(tick);
-    };
-    tick();
-
     ttsAudioEl.onended = () => {
-      hud.style.setProperty("--ring-glow", "0");
       setState("idle");
     };
   } catch (err) {
