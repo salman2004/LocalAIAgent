@@ -474,6 +474,76 @@ async function pollSystemStatus() {
 pollSystemStatus();
 setInterval(pollSystemStatus, 2500);
 
+async function pollWeather() {
+  try {
+    const resp = await fetch("/widgets/weather");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (!data) return;
+    document.getElementById("weather-temp").innerHTML = `${Math.round(data.temperature_c)}&deg;C`;
+    document.getElementById("weather-condition").textContent = data.condition;
+    document.getElementById("weather-location").textContent = data.location;
+  } catch {
+    // Skip a failed poll silently - it'll retry on the next interval.
+  }
+}
+pollWeather();
+setInterval(pollWeather, 5 * 60 * 1000);
+
+async function pollStocks() {
+  try {
+    const resp = await fetch("/widgets/stocks");
+    if (!resp.ok) return;
+    const rows = await resp.json();
+    const body = document.getElementById("stocks-body");
+    body.innerHTML = "";
+    rows.forEach((row) => {
+      const el = document.createElement("div");
+      el.className = "stock-row";
+      if (row.price === null) {
+        el.innerHTML = `<span class="stock-symbol">${row.symbol}</span><span class="stock-price">--</span>`;
+      } else {
+        const up = row.change_percent >= 0;
+        el.innerHTML = `
+          <span class="stock-symbol">${row.symbol}</span>
+          <span class="stock-price">${row.price.toFixed(2)}</span>
+          <span class="stock-change ${up ? "up" : "down"}">${up ? "+" : ""}${row.change_percent.toFixed(2)}%</span>
+        `;
+      }
+      body.appendChild(el);
+    });
+  } catch {
+    // Skip a failed poll silently - it'll retry on the next interval.
+  }
+}
+pollStocks();
+setInterval(pollStocks, 60 * 1000);
+
+async function pollNews() {
+  try {
+    const resp = await fetch("/widgets/news");
+    if (!resp.ok) return;
+    const items = await resp.json();
+    const body = document.getElementById("news-body");
+    body.innerHTML = "";
+    items.slice(0, 6).forEach((item) => {
+      const el = document.createElement("div");
+      el.className = "news-item";
+      const a = document.createElement("a");
+      a.href = item.link;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = item.title;
+      el.appendChild(a);
+      body.appendChild(el);
+    });
+  } catch {
+    // Skip a failed poll silently - it'll retry on the next interval.
+  }
+}
+pollNews();
+setInterval(pollNews, 10 * 60 * 1000);
+
 function logActivity(label) {
   const entry = document.createElement("div");
   entry.className = "log-entry";
