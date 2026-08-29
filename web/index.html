@@ -13,17 +13,63 @@
     <div id="status-badge" data-state="idle">idle</div>
   </header>
 
-  <div id="hud-wrap">
-    <div id="hud" data-state="idle"></div>
+  <div id="layout">
+    <aside id="sidebar">
+      <div id="hud-wrap">
+        <div id="hud" data-state="idle"></div>
+        <div id="input-level" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <div class="widget" id="widget-clock">
+        <div class="widget-label">SYSTEM TIME</div>
+        <div class="widget-value" id="clock-value">--:--:--</div>
+        <div class="widget-sub" id="date-value">-- --- ----</div>
+      </div>
+
+      <div class="widget" id="widget-stats">
+        <div class="widget-label">SYSTEM LOAD</div>
+        <div class="stat-row">
+          <span class="stat-name">CPU</span>
+          <div class="bar"><div class="bar-fill" id="cpu-bar"></div></div>
+          <span class="stat-val" id="cpu-val">--%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-name">RAM</span>
+          <div class="bar"><div class="bar-fill" id="ram-bar"></div></div>
+          <span class="stat-val" id="ram-val">--%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-name">GPU</span>
+          <div class="bar"><div class="bar-fill" id="gpu-bar"></div></div>
+          <span class="stat-val" id="gpu-val">--%</span>
+        </div>
+      </div>
+
+      <div class="widget" id="widget-services">
+        <div class="widget-label">SERVICES</div>
+        <div class="service-row"><span class="dot" id="svc-llm"></span>CHAT MODEL</div>
+        <div class="service-row"><span class="dot" id="svc-embedding"></span>EMBEDDING</div>
+        <div class="service-row"><span class="dot" id="svc-stt"></span>SPEECH-TO-TEXT</div>
+      </div>
+
+      <div class="widget" id="widget-log">
+        <div class="widget-label">ACTIVITY LOG</div>
+        <div id="activity-log"></div>
+      </div>
+    </aside>
+
+    <div id="main">
+      <main id="transcript"></main>
+
+      <form id="composer" autocomplete="off">
+        <button id="mic-btn" type="button" title="Voice input">&#127908;</button>
+        <input id="input" type="text" placeholder="Message the assistant..." />
+        <button id="send-btn" type="submit">Send</button>
+      </form>
+    </div>
   </div>
-
-  <main id="transcript"></main>
-
-  <form id="composer" autocomplete="off">
-    <button id="mic-btn" type="button" title="Voice input (coming soon)">&#127908;</button>
-    <input id="input" type="text" placeholder="Message the assistant..." />
-    <button id="send-btn" type="submit">Send</button>
-  </form>
 </div>
 
 <div id="confirm-overlay" class="hidden">

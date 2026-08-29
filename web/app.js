@@ -13,6 +13,10 @@ const confirmPreview = document.getElementById("confirm-preview");
 const confirmApproveBtn = document.getElementById("confirm-approve");
 const confirmDenyBtn = document.getElementById("confirm-deny");
 const micBtn = document.getElementById("mic-btn");
+const clockValue = document.getElementById("clock-value");
+const dateValue = document.getElementById("date-value");
+const activityLog = document.getElementById("activity-log");
+const inputLevel = document.getElementById("input-level");
 
 let conversation = [];
 
@@ -191,6 +195,7 @@ async function sendMessage(text) {
             setState("thinking");
             statusBadge.textContent = `using ${event.name}...`;
             addLine("tool-line", `${event.name}...`);
+            logActivity(event.name);
             break;
           }
           case "tool_end": {
@@ -275,6 +280,7 @@ async function startRecording() {
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop());
       lastMicReleaseTime = Date.now();
+      stopInputLevelMeter();
       const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
       await transcribeAndSend(blob);
     };
@@ -282,6 +288,7 @@ async function startRecording() {
     isRecording = true;
     micBtn.classList.add("recording");
     setState("listening");
+    startInputLevelMeter(stream);
   } catch (err) {
     addLine("msg-error", `Microphone access failed: ${err}`);
   }
@@ -293,6 +300,43 @@ function stopRecording() {
     isRecording = false;
     micBtn.classList.remove("recording");
   }
+}
+
+// Reads the mic's own input level while recording, purely for the level
+// meter - this AudioContext graph is never connected to .destination, so
+// (unlike the TTS-playback Web Audio bug from earlier) it can't affect
+// what's actually heard, only what's visualized.
+let inputAudioCtx = null;
+let inputLevelRAF = null;
+const inputLevelBars = inputLevel.querySelectorAll("span");
+
+function startInputLevelMeter(stream) {
+  if (!inputAudioCtx) inputAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const source = inputAudioCtx.createMediaStreamSource(stream);
+  const analyser = inputAudioCtx.createAnalyser();
+  analyser.fftSize = 64;
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  source.connect(analyser);
+
+  inputLevel.classList.add("active");
+  const step = Math.floor(data.length / inputLevelBars.length);
+
+  const tick = () => {
+    analyser.getByteFrequencyData(data);
+    inputLevelBars.forEach((bar, i) => {
+      const v = data[i * step] / 255;
+      bar.style.height = `${3 + v * 13}px`;
+    });
+    inputLevelRAF = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+function stopInputLevelMeter() {
+  if (inputLevelRAF) cancelAnimationFrame(inputLevelRAF);
+  inputLevelRAF = null;
+  inputLevel.classList.remove("active");
+  inputLevelBars.forEach((bar) => (bar.style.height = "3px"));
 }
 
 micBtn.addEventListener("click", () => {
@@ -376,6 +420,68 @@ async function speakText(text) {
   } catch (err) {
     // Voice playback failing shouldn't break the text chat.
     console.error("speak failed", err);
+  }
+}
+
+// --- HUD widgets: clock, system load, service status, activity log ------
+
+function updateClock() {
+  const now = new Date();
+  clockValue.textContent = now.toLocaleTimeString([], { hour12: false });
+  dateValue.textContent = now
+    .toLocaleDateString([], { weekday: "short", day: "2-digit", month: "short", year: "numeric" })
+    .toUpperCase();
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+function setBar(barEl, valEl, percent) {
+  if (percent === null || percent === undefined || Number.isNaN(percent)) {
+    valEl.textContent = "--%";
+    barEl.style.width = "0%";
+    barEl.classList.remove("warn", "danger");
+    return;
+  }
+  const pct = Math.max(0, Math.min(100, percent));
+  barEl.style.width = `${pct}%`;
+  valEl.textContent = `${Math.round(pct)}%`;
+  barEl.classList.toggle("warn", pct >= 70 && pct < 90);
+  barEl.classList.toggle("danger", pct >= 90);
+}
+
+function setServiceDot(id, up) {
+  const dot = document.getElementById(id);
+  if (!dot) return;
+  dot.classList.toggle("up", up === true);
+  dot.classList.toggle("down", up === false);
+}
+
+async function pollSystemStatus() {
+  try {
+    const resp = await fetch("/system/status");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    setBar(document.getElementById("cpu-bar"), document.getElementById("cpu-val"), data.cpu_percent);
+    setBar(document.getElementById("ram-bar"), document.getElementById("ram-val"), data.ram_percent);
+    setBar(document.getElementById("gpu-bar"), document.getElementById("gpu-val"), data.gpu_percent);
+    setServiceDot("svc-llm", data.services?.llm);
+    setServiceDot("svc-embedding", data.services?.embedding);
+    setServiceDot("svc-stt", data.services?.stt);
+  } catch {
+    // A missed poll isn't worth surfacing as an error - just try again next tick.
+  }
+}
+pollSystemStatus();
+setInterval(pollSystemStatus, 2500);
+
+function logActivity(label) {
+  const entry = document.createElement("div");
+  entry.className = "log-entry";
+  entry.dataset.time = new Date().toLocaleTimeString([], { hour12: false });
+  entry.textContent = label;
+  activityLog.prepend(entry);
+  while (activityLog.children.length > 30) {
+    activityLog.removeChild(activityLog.lastChild);
   }
 }
 
