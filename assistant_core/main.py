@@ -15,7 +15,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from assistant_core import confirmations, orchestrator, voice
+from assistant_core import confirmations, orchestrator, system_stats, voice
 from assistant_core.config import get_config
 
 app = FastAPI(title="Local Assistant Core")
@@ -51,6 +51,13 @@ class SpeakRequest(BaseModel):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/system/status")
+async def system_status():
+    """UI-support endpoint for the web frontend's HUD widgets - CPU/RAM/
+    GPU load and backend-service reachability. Not an LLM-visible tool."""
+    return await system_stats.get_status()
 
 
 @app.post("/chat", response_model=ChatResponse)
