@@ -10,12 +10,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from assistant_core import confirmations, orchestrator
+from assistant_core import confirmations, orchestrator, voice
 from assistant_core.config import get_config
 
 app = FastAPI(title="Local Assistant Core")
@@ -42,6 +42,10 @@ class ChatResponse(BaseModel):
 class ConfirmRequest(BaseModel):
     id: str
     approved: bool
+
+
+class SpeakRequest(BaseModel):
+    text: str
 
 
 @app.get("/health")
@@ -76,6 +80,31 @@ async def chat_confirm(request: ConfirmRequest):
     if not resolved:
         return {"ok": False, "reason": "unknown or already-resolved confirmation id"}
     return {"ok": True}
+
+
+@app.post("/voice/transcribe")
+async def voice_transcribe(file: UploadFile = File(...)):
+    """UI-support endpoint for the web frontend's mic button - not an
+    LLM-visible tool. Forwards the recorded clip to the vendored
+    whisper-server and returns the transcript as plain text."""
+    audio_bytes = await file.read()
+    try:
+        text = await voice.transcribe(audio_bytes, file.filename or "clip.wav")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {exc}") from exc
+    return {"text": text}
+
+
+@app.post("/voice/speak")
+async def voice_speak(request: SpeakRequest):
+    """UI-support endpoint for the web frontend's playback - not an
+    LLM-visible tool. Synthesizes speech for the given text via Piper and
+    returns the WAV bytes directly."""
+    try:
+        wav_bytes = await voice.speak(request.text)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Speech synthesis failed: {exc}") from exc
+    return Response(content=wav_bytes, media_type="audio/wav")
 
 
 # Registered last so it never shadows the API routes above - StaticFiles
