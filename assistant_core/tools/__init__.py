@@ -3,7 +3,7 @@ plus the actual callables the orchestrator dispatches to when the model
 requests a tool call.
 """
 
-from assistant_core.tools import fs_tools
+from assistant_core.tools import fs_tools, shell_tools
 from assistant_core.tools.rag_tool import rag_search
 from assistant_core.tools.web_tool import web_fetch, web_search
 
@@ -141,6 +141,31 @@ TOOL_SPECS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_command",
+            "description": (
+                "Run a PowerShell command inside one of the assistant's "
+                "configured roots and return its output. Requires the "
+                "user's explicit approval before it runs - use this "
+                "sparingly, only when a file/search tool genuinely can't "
+                "do the job."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "The PowerShell command to run."},
+                    "root": _ROOT_PARAM,
+                    "timeout_seconds": {
+                        "type": "integer",
+                        "description": "Kill the command if it runs longer than this. Defaults to 30.",
+                    },
+                },
+                "required": ["command"],
+            },
+        },
+    },
 ]
 
 TOOL_FUNCTIONS = {
@@ -151,20 +176,25 @@ TOOL_FUNCTIONS = {
     "read_file": lambda args: fs_tools.read_file(args["path"], args.get("root")),
     "write_file": lambda args: fs_tools.write_file(args["path"], args["content"], args.get("root")),
     "delete_file": lambda args: fs_tools.delete_file(args["path"], args.get("root")),
+    "run_command": lambda args: shell_tools.run_command(
+        args["command"], args.get("root"), args.get("timeout_seconds", shell_tools.DEFAULT_TIMEOUT_SECONDS)
+    ),
 }
 
 # Tools in this set go through the confirmation round-trip in
 # orchestrator.py instead of executing immediately - anything mutating
 # (write_file/delete_file) or otherwise risky/irreversible (run_command,
 # ask_claude).
-CONFIRM_REQUIRED_TOOLS = {"write_file", "delete_file"}
+CONFIRM_REQUIRED_TOOLS = {"write_file", "delete_file", "run_command"}
 
 
 def describe_pending_call(name: str, args: dict) -> str:
-    """Human-readable preview of a mutating call, shown to the user before
+    """Human-readable preview of a gated call, shown to the user before
     they approve or deny it."""
     if name == "write_file":
         return fs_tools.describe_write(args.get("path", ""), args.get("content", ""), args.get("root"))
     if name == "delete_file":
         return fs_tools.describe_delete(args.get("path", ""), args.get("root"))
+    if name == "run_command":
+        return shell_tools.describe_run_command(args.get("command", ""), args.get("root"))
     return f"{name}({args})"

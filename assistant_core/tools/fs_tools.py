@@ -31,6 +31,13 @@ def root_names() -> list[str]:
     return list(vars(get_config().workspace.roots).keys())
 
 
+def resolve_root(root_name: str | None) -> tuple[str, Path]:
+    """Public entry point for other tool modules (e.g. shell_tools) that
+    need a root's name/path but aren't doing path-containment checks of
+    their own."""
+    return _resolve_root(root_name)
+
+
 def _resolve_root(root_name: str | None) -> tuple[str, Path]:
     cfg = get_config().workspace
     name = root_name or cfg.default_root
