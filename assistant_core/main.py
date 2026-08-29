@@ -7,16 +7,20 @@ this over HTTP.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from assistant_core import confirmations, orchestrator
 from assistant_core.config import get_config
 
 app = FastAPI(title="Local Assistant Core")
+
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
 class ChatMessage(BaseModel):
@@ -72,6 +76,12 @@ async def chat_confirm(request: ConfirmRequest):
     if not resolved:
         return {"ok": False, "reason": "unknown or already-resolved confirmation id"}
     return {"ok": True}
+
+
+# Registered last so it never shadows the API routes above - StaticFiles
+# only serves whatever a preceding route hasn't already claimed. Same
+# origin as the API, so the web UI needs no CORS setup at all.
+app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
 
 
 if __name__ == "__main__":
