@@ -12,6 +12,7 @@ const confirmTitle = document.getElementById("confirm-title");
 const confirmPreview = document.getElementById("confirm-preview");
 const confirmApproveBtn = document.getElementById("confirm-approve");
 const confirmDenyBtn = document.getElementById("confirm-deny");
+const micBtn = document.getElementById("mic-btn");
 
 let conversation = [];
 
@@ -190,6 +191,7 @@ async function sendMessage(text) {
             conversation = event.messages;
             collapseReasoning();
             setState("idle");
+            if (answerAcc.trim()) speakText(answerAcc);
             break;
           }
           case "error": {
@@ -216,5 +218,118 @@ composer.addEventListener("submit", (e) => {
   input.value = "";
   sendMessage(text);
 });
+
+// --- voice: mic input ---------------------------------------------------
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    recordedChunks = [];
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      await transcribeAndSend(blob);
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    micBtn.classList.add("recording");
+    setState("listening");
+  } catch (err) {
+    addLine("msg-error", `Microphone access failed: ${err}`);
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && isRecording) {
+    mediaRecorder.stop();
+    isRecording = false;
+    micBtn.classList.remove("recording");
+  }
+}
+
+micBtn.addEventListener("click", () => {
+  if (isRecording) stopRecording();
+  else startRecording();
+});
+
+async function transcribeAndSend(blob) {
+  setState("thinking");
+  const form = new FormData();
+  form.append("file", blob, "clip.webm");
+  try {
+    const resp = await fetch("/voice/transcribe", { method: "POST", body: form });
+    if (!resp.ok) {
+      addLine("msg-error", `Transcription failed: HTTP ${resp.status}`);
+      setState("idle");
+      return;
+    }
+    const data = await resp.json();
+    const text = (data.text || "").trim();
+    if (!text) {
+      addLine("msg-error", "Didn't catch that - no speech detected.");
+      setState("idle");
+      return;
+    }
+    await sendMessage(text);
+  } catch (err) {
+    addLine("msg-error", `Transcription failed: ${err}`);
+    setState("idle");
+  }
+}
+
+// --- voice: playback, HUD reacts to real audio amplitude ----------------
+
+let audioCtx = null;
+
+async function speakText(text) {
+  try {
+    const resp = await fetch("/voice/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!resp.ok) return;
+    const arrayBuf = await resp.arrayBuffer();
+
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    setState("speaking");
+    source.start();
+
+    const tick = () => {
+      if (hud.dataset.state !== "speaking") return;
+      analyser.getByteFrequencyData(dataArray);
+      const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+      hud.style.setProperty("--ring-glow", Math.min(1, avg / 100).toFixed(3));
+      requestAnimationFrame(tick);
+    };
+    tick();
+
+    source.onended = () => {
+      hud.style.setProperty("--ring-glow", "0");
+      setState("idle");
+    };
+  } catch (err) {
+    // Voice playback failing shouldn't break the text chat.
+    console.error("speak failed", err);
+  }
+}
 
 setState("idle");
