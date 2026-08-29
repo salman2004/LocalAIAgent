@@ -11,7 +11,9 @@ from __future__ import annotations
 import asyncio
 import audioop
 import io
+import tempfile
 import wave
+from pathlib import Path
 
 import httpx
 
@@ -61,23 +63,38 @@ async def transcribe(audio_bytes: bytes, filename: str) -> str:
 
 
 async def speak(text: str) -> bytes:
+    """Piper writes to a real (temp) file, NOT stdout (`--output_file -`).
+    That used to be stdout-piped, but a WAV writer has to seek back and
+    patch the RIFF/data chunk sizes once it knows the final length - it
+    can't do that on a non-seekable pipe, so the stdout path was leaving a
+    header whose declared data size didn't match the actual audio bytes
+    written (confirmed by hand: 680 bytes of real audio physically present
+    beyond what the header declared). That mismatch is exactly the kind of
+    thing that makes some decoders produce garbled/distorted playback.
+    Writing to a real file lets Piper seek back and get the header right,
+    same as the very first manual verification test of this binary did.
+    """
     cfg = get_config().text_to_speech
-    proc = await asyncio.create_subprocess_exec(
-        cfg.exe_path,
-        "--model",
-        cfg.voice_model_path,
-        "--config",
-        cfg.voice_config_path,
-        "--output_file",
-        "-",
-        "--quiet",
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await proc.communicate(input=text.encode("utf-8"))
-    if proc.returncode != 0:
-        raise RuntimeError(
-            f"piper exited with code {proc.returncode}: {stderr.decode(errors='replace')}"
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        out_path = Path(tmp_dir) / "piper_output.wav"
+        proc = await asyncio.create_subprocess_exec(
+            cfg.exe_path,
+            "--model",
+            cfg.voice_model_path,
+            "--config",
+            cfg.voice_config_path,
+            "--output_file",
+            str(out_path),
+            "--quiet",
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
-    return _resample_wav(stdout, OUTPUT_SAMPLE_RATE)
+        _stdout, stderr = await proc.communicate(input=text.encode("utf-8"))
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"piper exited with code {proc.returncode}: {stderr.decode(errors='replace')}"
+            )
+        wav_bytes = out_path.read_bytes()
+
+    return _resample_wav(wav_bytes, OUTPUT_SAMPLE_RATE)
