@@ -47,6 +47,14 @@ text_to_speech:
   voice_model_path: "./models/en_US-ryan-high.onnx"
   voice_config_path: "./models/en_US-ryan-high.onnx.json"
 
+widgets:
+  # HUD sidebar widgets - stocks/news/weather, purely informational (not
+  # LLM-visible tools, just data the web UI polls directly).
+  stock_symbols: ["AAPL", "MSFT", "GOOGL", "NVDA"]
+  news_feeds:
+    - "https://techcrunch.com/feed/"
+  weather_location: "London, United Kingdom"  # placeholder - replace with your actual city
+
 workspace:
   # File tools (list_directory/read_file/write_file/delete_file/run_command/
   # ask_claude) are sandboxed to one of these named roots and can't escape

@@ -15,7 +15,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from assistant_core import confirmations, orchestrator, system_stats, voice
+from assistant_core import confirmations, orchestrator, system_stats, voice, widgets
 from assistant_core.config import get_config
 
 app = FastAPI(title="Local Assistant Core")
@@ -58,6 +58,21 @@ async def system_status():
     """UI-support endpoint for the web frontend's HUD widgets - CPU/RAM/
     GPU load and backend-service reachability. Not an LLM-visible tool."""
     return await system_stats.get_status()
+
+
+@app.get("/widgets/stocks")
+async def widgets_stocks():
+    return await widgets.get_stocks()
+
+
+@app.get("/widgets/news")
+async def widgets_news():
+    return await widgets.get_news()
+
+
+@app.get("/widgets/weather")
+async def widgets_weather():
+    return await widgets.get_weather()
 
 
 @app.post("/chat", response_model=ChatResponse)
