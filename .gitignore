@@ -4,12 +4,15 @@ __pycache__/
 *.pyc
 
 # Model weights are large and machine-specific — download separately per README
-models/*.gguf
+models/
 
 # Local vector DB contents (regenerate via scripts/ingest_docs.py)
 rag_store/lancedb/
 
-# llama.cpp binaries fetched by scripts/setup_llamacpp.ps1
+# llama.cpp/whisper.cpp/Piper binaries fetched by scripts/setup_*.ps1
 vendor/
+
+# Runtime state (e.g. the ask_claude persistent session id) - machine-specific, not source
+.state/
 
 .env

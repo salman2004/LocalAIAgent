@@ -176,7 +176,10 @@ TOOL_SPECS = [
                 "for any task that involves writing, editing, or debugging "
                 "code, however small - you must never write code yourself. "
                 "Also use it for any other task complex enough that you're "
-                "not confident handling it directly. Requires the user's "
+                "not confident handling it directly. All escalations share "
+                "one ongoing Claude Code session, so it remembers earlier "
+                "asks - you can reference past escalations naturally "
+                "('the script you wrote earlier'). Requires the user's "
                 "explicit approval before it runs, and can take a couple of "
                 "minutes."
             ),
