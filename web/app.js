@@ -86,6 +86,23 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "n" || e.key === "N") resolveConfirm(false);
 });
 
+// --- barge-in: interrupt playback/generation the moment the user starts
+// talking again, instead of forcing them to wait out the current reply
+// (the pattern real voice-assistant pipelines like Pipecat call barge-in).
+
+let currentChatAbortController = null;
+
+function interruptSpeechAndChat() {
+  if (ttsAudioEl && !ttsAudioEl.paused) {
+    ttsAudioEl.pause();
+    setState("idle");
+  }
+  if (currentChatAbortController) {
+    currentChatAbortController.abort();
+    currentChatAbortController = null;
+  }
+}
+
 // --- SSE stream handling ------------------------------------------------
 
 async function sendMessage(text) {
@@ -102,11 +119,15 @@ async function sendMessage(text) {
     if (reasoningDetails) reasoningDetails.open = false;
   };
 
+  const abortController = new AbortController();
+  currentChatAbortController = abortController;
+
   try {
     const resp = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: conversation }),
+      signal: abortController.signal,
     });
     if (!resp.ok || !resp.body) {
       addLine("msg-error", `Request failed: HTTP ${resp.status}`);
@@ -205,9 +226,17 @@ async function sendMessage(text) {
       }
     }
   } catch (err) {
-    addLine("msg-error", `Connection error: ${err}`);
-    setState("error");
-    setTimeout(() => setState("idle"), 1500);
+    // A deliberate barge-in (user pressed mic mid-reply) aborts this
+    // fetch on purpose - that's not a real error, so don't show one.
+    if (err.name !== "AbortError") {
+      addLine("msg-error", `Connection error: ${err}`);
+      setState("error");
+      setTimeout(() => setState("idle"), 1500);
+    }
+  } finally {
+    if (currentChatAbortController === abortController) {
+      currentChatAbortController = null;
+    }
   }
 }
 
@@ -235,6 +264,7 @@ let lastMicReleaseTime = null;
 const BLUETOOTH_PROFILE_SWITCH_DELAY_MS = 1200;
 
 async function startRecording() {
+  interruptSpeechAndChat();
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(stream);
