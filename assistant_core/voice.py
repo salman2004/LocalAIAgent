@@ -77,7 +77,7 @@ async def speak(text: str) -> bytes:
     cfg = get_config().text_to_speech
     with tempfile.TemporaryDirectory() as tmp_dir:
         out_path = Path(tmp_dir) / "piper_output.wav"
-        proc = await asyncio.create_subprocess_exec(
+        args = [
             cfg.exe_path,
             "--model",
             cfg.voice_model_path,
@@ -86,6 +86,16 @@ async def speak(text: str) -> bytes:
             "--output_file",
             str(out_path),
             "--quiet",
+        ]
+        speaker_id = getattr(cfg, "speaker_id", None)
+        if speaker_id is not None:
+            args += ["--speaker", str(speaker_id)]
+        length_scale = getattr(cfg, "length_scale", None)
+        if length_scale is not None:
+            args += ["--length_scale", str(length_scale)]
+
+        proc = await asyncio.create_subprocess_exec(
+            *args,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

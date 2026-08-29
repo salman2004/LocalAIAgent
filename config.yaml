@@ -44,8 +44,10 @@ text_to_speech:
   # per utterance, so (unlike the other model paths above) its own exe
   # path lives here too, not just its voice model.
   exe_path: "./vendor/piper/piper/piper.exe"
-  voice_model_path: "./models/en_US-ryan-high.onnx"
-  voice_config_path: "./models/en_US-ryan-high.onnx.json"
+  voice_model_path: "./models/en_GB-vctk-medium.onnx"
+  voice_config_path: "./models/en_GB-vctk-medium.onnx.json"
+  speaker_id: 76  # p254 within en_GB-vctk-medium's 109 speakers - null for single-speaker voices
+  length_scale: 0.9  # <1.0 speaks faster than the model's default pace, >1.0 slower
 
 widgets:
   # HUD sidebar widgets - stocks/news/weather, purely informational (not
