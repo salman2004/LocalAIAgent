@@ -298,6 +298,7 @@ async function transcribeAndSend(blob) {
 // --- voice: playback, HUD reacts to real audio amplitude ----------------
 
 let audioCtx = null;
+let ttsAudioEl = null;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -311,10 +312,7 @@ async function speakText(text) {
       body: JSON.stringify({ text }),
     });
     if (!resp.ok) return;
-    const arrayBuf = await resp.arrayBuffer();
-
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+    const blob = await resp.blob();
 
     // Give a Bluetooth headset time to switch back from its low-quality
     // call profile (used while the mic was open) to its high-quality
@@ -327,8 +325,20 @@ async function speakText(text) {
       if (remaining > 0) await sleep(remaining);
     }
 
-    const source = audioCtx.createBufferSource();
-    source.buffer = audioBuffer;
+    // Plain <audio> playback rather than manually decoding/resampling via
+    // AudioContext - the browser's own media pipeline handles output-device
+    // resampling (Piper's WAV is 22050Hz, system output is usually
+    // 44100/48000Hz) far more robustly than a hand-rolled BufferSourceNode
+    // graph. The analyser below is only a read-only tap on top of this for
+    // the HUD glow, never the actual playback path.
+    if (ttsAudioEl) {
+      ttsAudioEl.pause();
+      URL.revokeObjectURL(ttsAudioEl.src);
+    }
+    ttsAudioEl = new Audio(URL.createObjectURL(blob));
+
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaElementSource(ttsAudioEl);
     const analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -336,7 +346,7 @@ async function speakText(text) {
     analyser.connect(audioCtx.destination);
 
     setState("speaking");
-    source.start();
+    await ttsAudioEl.play();
 
     const tick = () => {
       if (hud.dataset.state !== "speaking") return;
@@ -347,7 +357,7 @@ async function speakText(text) {
     };
     tick();
 
-    source.onended = () => {
+    ttsAudioEl.onended = () => {
       hud.style.setProperty("--ring-glow", "0");
       setState("idle");
     };
