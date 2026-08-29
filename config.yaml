@@ -44,8 +44,8 @@ text_to_speech:
   # per utterance, so (unlike the other model paths above) its own exe
   # path lives here too, not just its voice model.
   exe_path: "./vendor/piper/piper/piper.exe"
-  voice_model_path: "./models/en_US-lessac-medium.onnx"
-  voice_config_path: "./models/en_US-lessac-medium.onnx.json"
+  voice_model_path: "./models/en_US-ryan-high.onnx"
+  voice_config_path: "./models/en_US-ryan-high.onnx.json"
 
 workspace:
   # File tools (list_directory/read_file/write_file/delete_file/run_command/

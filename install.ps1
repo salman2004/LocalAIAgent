@@ -130,13 +130,13 @@ Get-FileRobust `
     -MinBytes 480000000
 
 Get-FileRobust `
-    -Url "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx?download=true" `
-    -OutFile (Join-Path $ModelsDir "en_US-lessac-medium.onnx") `
-    -MinBytes 60000000
+    -Url "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx?download=true" `
+    -OutFile (Join-Path $ModelsDir "en_US-ryan-high.onnx") `
+    -MinBytes 115000000
 
 Get-FileRobust `
-    -Url "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json?download=true" `
-    -OutFile (Join-Path $ModelsDir "en_US-lessac-medium.onnx.json") `
+    -Url "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx.json?download=true" `
+    -OutFile (Join-Path $ModelsDir "en_US-ryan-high.onnx.json") `
     -MinBytes 1000
 
 Write-Host "`n== Setup complete ==" -ForegroundColor Green
