@@ -21,6 +21,8 @@ print(
             "embeddings_base_url": cfg.embeddings.base_url,
             "embeddings_model_path": cfg.embeddings.model_path,
             "embeddings_context_size": cfg.embeddings.context_size,
+            "speech_to_text_base_url": cfg.speech_to_text.base_url,
+            "speech_to_text_model_path": cfg.speech_to_text.model_path,
         }
     )
 )

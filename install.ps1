@@ -49,7 +49,7 @@ Write-Host "== Local Assistant setup ==" -ForegroundColor Cyan
 
 # ---- 1. Python ------------------------------------------------------------
 
-Write-Host "`n[1/4] Checking for Python..."
+Write-Host "`n[1/5] Checking for Python..."
 
 if (-not (Test-CommandExists "python")) {
     if (Test-CommandExists "winget") {
@@ -77,7 +77,7 @@ Write-Host "  found $pyVersionOutput"
 
 # ---- 2. Virtual environment + dependencies --------------------------------
 
-Write-Host "`n[2/4] Setting up the Python virtual environment..."
+Write-Host "`n[2/5] Setting up the Python virtual environment..."
 
 $VenvDir = Join-Path $RepoRoot ".venv"
 $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
@@ -96,12 +96,17 @@ Write-Host "  installing dependencies (this can take a minute)..."
 
 # ---- 3. llama.cpp (Vulkan build) ------------------------------------------
 
-Write-Host "`n[3/4] Setting up llama.cpp (Vulkan build)..."
+Write-Host "`n[3/5] Setting up llama.cpp (Vulkan build)..."
 & (Join-Path $RepoRoot "scripts\setup_llamacpp.ps1")
 
-# ---- 4. Models --------------------------------------------------------------
+# ---- 4. whisper.cpp (speech-to-text) ---------------------------------------
 
-Write-Host "`n[4/4] Downloading models (the chat model is ~10GB - this is the slow part)..."
+Write-Host "`n[4/5] Setting up whisper.cpp (CPU/BLAS build)..."
+& (Join-Path $RepoRoot "scripts\setup_whispercpp.ps1")
+
+# ---- 5. Models --------------------------------------------------------------
+
+Write-Host "`n[5/5] Downloading models (the chat model is ~10GB - this is the slow part)..."
 $ModelsDir = Join-Path $RepoRoot "models"
 
 Get-FileRobust `
@@ -113,6 +118,11 @@ Get-FileRobust `
     -Url "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf?download=true" `
     -OutFile (Join-Path $ModelsDir "nomic-embed-text-v1.5.Q8_0.gguf") `
     -MinBytes 100000000
+
+Get-FileRobust `
+    -Url "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin?download=true" `
+    -OutFile (Join-Path $ModelsDir "ggml-small.en.bin") `
+    -MinBytes 480000000
 
 Write-Host "`n== Setup complete ==" -ForegroundColor Green
 Write-Host "`nRun .\start_all.ps1 to launch everything and open the terminal UI,"

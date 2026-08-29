@@ -17,10 +17,11 @@ if (-not (Test-Path $VenvPython)) {
     throw "No .venv found. Run install.ps1 first."
 }
 
-Write-Host "Starting chat model server, embedding server, and assistant core..."
+Write-Host "Starting chat model server, embedding server, speech-to-text server, and assistant core..."
 
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "& '$RepoRoot\scripts\start_llm_server.ps1'"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "& '$RepoRoot\scripts\start_embedding_server.ps1'"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "& '$RepoRoot\scripts\start_whisper_server.ps1'"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "& '$VenvPython' -m assistant_core.main"
 
 Write-Host "Waiting a few seconds for assistant_core to come up..."

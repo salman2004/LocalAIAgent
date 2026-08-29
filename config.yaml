@@ -35,6 +35,10 @@ web_search:
   max_results: 5
   fetch_timeout_seconds: 15
 
+speech_to_text:
+  base_url: "http://127.0.0.1:8082"   # whisper.cpp server hosting the STT model
+  model_path: "./models/ggml-small.en.bin"
+
 workspace:
   # File tools (list_directory/read_file/write_file/delete_file/run_command/
   # ask_claude) are sandboxed to one of these named roots and can't escape
