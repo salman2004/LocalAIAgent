@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local Assistant</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="header">
+    <div id="brand">LOCAL ASSISTANT</div>
+    <div id="status-badge" data-state="idle">idle</div>
+  </header>
+
+  <div id="hud-wrap">
+    <div id="hud" data-state="idle"></div>
+  </div>
+
+  <main id="transcript"></main>
+
+  <form id="composer" autocomplete="off">
+    <button id="mic-btn" type="button" title="Voice input (coming soon)">&#127908;</button>
+    <input id="input" type="text" placeholder="Message the assistant..." />
+    <button id="send-btn" type="submit">Send</button>
+  </form>
+</div>
+
+<div id="confirm-overlay" class="hidden">
+  <div id="confirm-modal">
+    <div id="confirm-title">Allow this?</div>
+    <pre id="confirm-preview"></pre>
+    <div id="confirm-actions">
+      <button id="confirm-deny" type="button">Deny</button>
+      <button id="confirm-approve" type="button">Approve</button>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
