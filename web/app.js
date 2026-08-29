@@ -224,6 +224,15 @@ composer.addEventListener("submit", (e) => {
 let mediaRecorder = null;
 let recordedChunks = [];
 let isRecording = false;
+// When the mic is released after using a Bluetooth headset, Windows/Android
+// often takes a moment to switch it back from the low-quality call profile
+// (HFP/HSP, used to carry the mic) to the high-quality one (A2DP, output
+// only) - if TTS starts playing before that switch finishes, it comes out
+// distorted. This tracks when the mic was last released so speakText() can
+// wait out the rest of a minimum gap before playing, without ever delaying
+// playback when the mic wasn't used at all (typed messages).
+let lastMicReleaseTime = null;
+const BLUETOOTH_PROFILE_SWITCH_DELAY_MS = 1200;
 
 async function startRecording() {
   try {
@@ -235,6 +244,7 @@ async function startRecording() {
     };
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop());
+      lastMicReleaseTime = Date.now();
       const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
       await transcribeAndSend(blob);
     };
@@ -289,6 +299,10 @@ async function transcribeAndSend(blob) {
 
 let audioCtx = null;
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function speakText(text) {
   try {
     const resp = await fetch("/voice/speak", {
@@ -301,6 +315,17 @@ async function speakText(text) {
 
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+
+    // Give a Bluetooth headset time to switch back from its low-quality
+    // call profile (used while the mic was open) to its high-quality
+    // output-only one, so this doesn't come out distorted. Only waits the
+    // remainder of the gap - the transcribe+chat round trip already ate
+    // into it, and this is skipped entirely if the mic was never used.
+    if (lastMicReleaseTime !== null) {
+      const elapsed = Date.now() - lastMicReleaseTime;
+      const remaining = BLUETOOTH_PROFILE_SWITCH_DELAY_MS - elapsed;
+      if (remaining > 0) await sleep(remaining);
+    }
 
     const source = audioCtx.createBufferSource();
     source.buffer = audioBuffer;
