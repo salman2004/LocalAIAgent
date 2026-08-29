@@ -9,10 +9,43 @@ tools - the model never calls these directly, only the browser does.
 from __future__ import annotations
 
 import asyncio
+import audioop
+import io
+import wave
 
 import httpx
 
 from assistant_core.config import get_config
+
+OUTPUT_SAMPLE_RATE = 44100
+
+
+def _resample_wav(wav_bytes: bytes, out_rate: int) -> bytes:
+    """Piper outputs at its voice model's native rate (22050Hz for
+    en_US-lessac-medium). Resampling here, once, server-side, means the
+    browser/OS never has to - which turned out to matter: this device's
+    Bluetooth output sounded distorted at 22050Hz even with zero Web Audio
+    API involvement client-side, so the OS's own resampler for this
+    specific device/rate combination was the actual remaining suspect.
+    """
+    with wave.open(io.BytesIO(wav_bytes), "rb") as src:
+        params = src.getparams()
+        frames = src.readframes(params.nframes)
+
+    if params.framerate == out_rate:
+        return wav_bytes
+
+    converted, _ = audioop.ratecv(
+        frames, params.sampwidth, params.nchannels, params.framerate, out_rate, None
+    )
+
+    out = io.BytesIO()
+    with wave.open(out, "wb") as dst:
+        dst.setnchannels(params.nchannels)
+        dst.setsampwidth(params.sampwidth)
+        dst.setframerate(out_rate)
+        dst.writeframes(converted)
+    return out.getvalue()
 
 
 async def transcribe(audio_bytes: bytes, filename: str) -> str:
@@ -47,4 +80,4 @@ async def speak(text: str) -> bytes:
         raise RuntimeError(
             f"piper exited with code {proc.returncode}: {stderr.decode(errors='replace')}"
         )
-    return stdout
+    return _resample_wav(stdout, OUTPUT_SAMPLE_RATE)
