@@ -101,12 +101,17 @@ Write-Host "`n[3/5] Setting up llama.cpp (Vulkan build)..."
 
 # ---- 4. whisper.cpp (speech-to-text) ---------------------------------------
 
-Write-Host "`n[4/5] Setting up whisper.cpp (CPU/BLAS build)..."
+Write-Host "`n[4/6] Setting up whisper.cpp (CPU/BLAS build)..."
 & (Join-Path $RepoRoot "scripts\setup_whispercpp.ps1")
 
-# ---- 5. Models --------------------------------------------------------------
+# ---- 5. Piper (text-to-speech) ---------------------------------------------
 
-Write-Host "`n[5/5] Downloading models (the chat model is ~10GB - this is the slow part)..."
+Write-Host "`n[5/6] Setting up Piper (text-to-speech)..."
+& (Join-Path $RepoRoot "scripts\setup_piper.ps1")
+
+# ---- 6. Models --------------------------------------------------------------
+
+Write-Host "`n[6/6] Downloading models (the chat model is ~10GB - this is the slow part)..."
 $ModelsDir = Join-Path $RepoRoot "models"
 
 Get-FileRobust `
@@ -123,6 +128,16 @@ Get-FileRobust `
     -Url "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin?download=true" `
     -OutFile (Join-Path $ModelsDir "ggml-small.en.bin") `
     -MinBytes 480000000
+
+Get-FileRobust `
+    -Url "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx?download=true" `
+    -OutFile (Join-Path $ModelsDir "en_US-lessac-medium.onnx") `
+    -MinBytes 60000000
+
+Get-FileRobust `
+    -Url "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json?download=true" `
+    -OutFile (Join-Path $ModelsDir "en_US-lessac-medium.onnx.json") `
+    -MinBytes 1000
 
 Write-Host "`n== Setup complete ==" -ForegroundColor Green
 Write-Host "`nRun .\start_all.ps1 to launch everything and open the terminal UI,"

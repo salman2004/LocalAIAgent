@@ -39,6 +39,9 @@ def get_config() -> SimpleNamespace:
     raw["embeddings"]["model_path"] = _resolve_path(raw["embeddings"]["model_path"])
     raw["rag"]["db_path"] = _resolve_path(raw["rag"]["db_path"])
     raw["speech_to_text"]["model_path"] = _resolve_path(raw["speech_to_text"]["model_path"])
+    raw["text_to_speech"]["exe_path"] = _resolve_path(raw["text_to_speech"]["exe_path"])
+    raw["text_to_speech"]["voice_model_path"] = _resolve_path(raw["text_to_speech"]["voice_model_path"])
+    raw["text_to_speech"]["voice_config_path"] = _resolve_path(raw["text_to_speech"]["voice_config_path"])
     for root_spec in raw["workspace"]["roots"].values():
         root_spec["path"] = _resolve_path(root_spec["path"])
 
