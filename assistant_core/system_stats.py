@@ -40,7 +40,7 @@ async def _read_gpu_percent() -> float | None:
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, _stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
-        value = min(100.0, float(stdout.decode(errors="replace").strip()))
+        value = round(min(100.0, float(stdout.decode(errors="replace").strip())), 1)
     except (OSError, asyncio.TimeoutError, ValueError):
         value = None
 
