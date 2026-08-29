@@ -36,8 +36,16 @@ web_search:
   fetch_timeout_seconds: 15
 
 workspace:
-  # File tools (list_directory/read_file/write_file/delete_file) are
-  # sandboxed to this folder and can't escape it (no ../ traversal out).
-  # Point this at whatever folder you actually want the assistant working
-  # in - defaults to a folder inside the repo so it's safe out of the box.
-  root: "./workspace"
+  # File tools (list_directory/read_file/write_file/delete_file/run_command/
+  # ask_claude) are sandboxed to one of these named roots and can't escape
+  # them (no ../ traversal out, no absolute paths). Tools take an optional
+  # `root` argument (one of the names below); default_root is used when
+  # omitted.
+  default_root: "code"
+  roots:
+    code:
+      path: "./workspace"
+    side_projects:
+      path: "C:/Users/ssalm/ClaudeSideProjects"
+    desktop:
+      path: "C:/Users/ssalm/OneDrive/Desktop"
